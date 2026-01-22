@@ -9,7 +9,7 @@
     "tts"
   ],
   "host_permissions": [
-    "*://test.mosquitto.org/*",
+    "*://broker.emqx.io/*",
     "*://*.primevideo.com/*"
   ],
   "background": {
