@@ -85,7 +85,6 @@ function speak(text) {
     if (!isEnabled) return;
     if (isBlockedTemporarily) return;
     
-    // --- FILTROWANIE ---
     const lowerText = text.toLowerCase();
     let detectedForbidden = 0;
     for (const word of FORBIDDEN_WORDS) {
@@ -102,22 +101,15 @@ function speak(text) {
     
     lastText = cleanedText;
 
-    // --- LOGIKA MÓWIENIA ---
-    if (isRemote) {
-        console.log(`> REMOTE SEND: ${cleanedText}`);
-        chrome.runtime.sendMessage({
-            action: "speak_remote",
-            text: cleanedText,
-            sessionId: currentSessionId
-        });
-    } else {
-        synthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(cleanedText);
-        if (selectedVoice) utterance.voice = selectedVoice;
-        utterance.rate = 1.2; 
-        synthesis.speak(utterance);
-        console.log(`> LOCAL READ: ${cleanedText}`);
-    }
+    // --- WYSYŁANIE DO BACKGROUNDU ---
+    console.log(`> SENDING [${isRemote ? 'REMOTE' : 'LOCAL'}]: ${cleanedText}`);
+    
+    chrome.runtime.sendMessage({
+        action: "speak",
+        text: cleanedText,
+        mode: isRemote ? 'remote' : 'local',
+        sessionId: currentSessionId
+    });
 }
 
 function startObserving() {
@@ -185,14 +177,24 @@ function stopObserving() {
         observer = null;
     }
     if (debounceTimer) clearTimeout(debounceTimer);
-    synthesis.cancel();
+    
+    // Stop local TTS via background
+    chrome.runtime.sendMessage({ action: "stop_all" });
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "start_local") {
+    if (request.action === "start") {
         isEnabled = true;
         isRemote = false;
-        if (request.voiceName) setVoice(request.voiceName);
+        
+        // Ustawiamy głos w backgroundzie
+        if (request.voiceName) {
+            chrome.runtime.sendMessage({ 
+                action: "set_voice", 
+                voiceName: request.voiceName 
+            });
+        }
+        
         startObserving();
         console.log("> MODE: LOCAL STARTED");
     

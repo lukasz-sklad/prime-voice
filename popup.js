@@ -90,99 +90,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- ŁADOWANIE GŁOSÓW (LOKALNE) ---
-    let voiceLoadAttempts = 0;
-    
+    // --- ŁADOWANIE GŁOSÓW (CHROME TTS) ---
     function loadVoices() {
-        let voices = speechSynthesis.getVoices();
-        voiceSelect.innerHTML = '';
+        chrome.tts.getVoices((voices) => {
+            voiceSelect.innerHTML = '';
 
-        if (voices.length === 0) {
-            voiceLoadAttempts++;
-            if (voiceLoadAttempts < 10) {
-                // Próbuj przez ok. 2 sekundy (10 * 200ms)
-                setTimeout(loadVoices, 200);
-            } else {
-                // Poddajemy się - brak głosów systemowych
+            if (voices.length === 0) {
                 const option = document.createElement('option');
-                option.text = "⚠️ BRAK GŁOSÓW SYSTEMOWYCH";
+                option.text = "⚠️ Brak głosów TTS";
                 voiceSelect.appendChild(option);
-                
-                const option2 = document.createElement('option');
-                option2.text = ">> Zainstaluj Piper TTS (link powyżej) >>";
-                voiceSelect.appendChild(option2);
-                
-                statusLog.innerHTML = "Brak głosów TTS.<br>Zainstaluj dodatek Piper lub użyj telefonu.";
-                statusLog.style.color = "orange";
+                return;
             }
-            return;
-        }
 
-        // Reset licznika jeśli się udało
-        voiceLoadAttempts = 0;
+            // Sortowanie: Najpierw PL, potem reszta. Promuj Piper/Google.
+            voices.sort((a, b) => {
+                const langA = (a.lang || '').toLowerCase();
+                const langB = (b.lang || '').toLowerCase();
+                const nameA = a.voiceName || '';
+                const nameB = b.voiceName || '';
+                
+                const isPlA = langA.includes('pl');
+                const isPlB = langB.includes('pl');
 
-        // Sortowanie: Najpierw PL, potem reszta. W ramach PL, preferuj Google/Microsoft/Piper
-        voices.sort((a, b) => {
-            const langA = a.lang.toLowerCase();
-            const langB = b.lang.toLowerCase();
-            const isPlA = langA.includes('pl');
-            const isPlB = langB.includes('pl');
+                if (isPlA && !isPlB) return -1;
+                if (!isPlA && isPlB) return 1;
+                
+                const isPremiumA = nameA.includes('Piper') || nameA.includes('Google');
+                const isPremiumB = nameB.includes('Piper') || nameB.includes('Google');
+                
+                if (isPremiumA && !isPremiumB) return -1;
+                if (!isPremiumA && isPremiumB) return 1;
 
-            if (isPlA && !isPlB) return -1;
-            if (!isPlA && isPlB) return 1;
-            
-            // Promuj "dobre" głosy (w tym Piper!)
-            const isPremiumA = a.name.includes('Piper') || a.name.includes('Google') || a.name.includes('Microsoft');
-            const isPremiumB = b.name.includes('Piper') || b.name.includes('Google') || b.name.includes('Microsoft');
-            
-            if (isPremiumA && !isPremiumB) return -1;
-            if (!isPremiumA && isPremiumB) return 1;
+                return nameA.localeCompare(nameB);
+            });
 
-            return a.name.localeCompare(b.name);
+            voices.forEach((voice) => {
+                const option = document.createElement('option');
+                option.value = voice.voiceName; 
+                
+                let label = voice.voiceName;
+                if (voice.extensionId) label += ' (Ext)'; // Oznacz głosy z dodatków
+                
+                option.textContent = label;
+                
+                // Auto-select PL
+                if ((voice.lang || '').includes('pl') && !voiceSelect.value) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
         });
-
-        voices.forEach((voice, index) => {
-            const option = document.createElement('option');
-            option.value = voice.name; 
-            
-            let label = voice.name;
-            if (voice.default) label += ' (Domyślny)';
-            
-            option.textContent = label;
-            
-            // Auto-select pierwszego polskiego
-            if (voice.lang.includes('pl') && !voiceSelect.value) {
-                option.selected = true;
-            }
-            voiceSelect.appendChild(option);
-        });
-        
-        // Jeśli nic nie wybrano (brak PL), wybierz pierwszy dostępny
-        if (!voiceSelect.value && voices.length > 0) {
-            voiceSelect.selectedIndex = 0;
-        }
     }
 
-    speechSynthesis.onvoiceschanged = loadVoices;
+    // Nie ma zdarzenia onvoiceschanged dla chrome.tts, ładujemy raz
     loadVoices();
-    // Extra reload po 1s dla zewnętrznych extensions
-    setTimeout(loadVoices, 1000);
 
-    // --- LOGIKA START/STOP (LOKALNA) ---
+    // --- LOGIKA START/STOP ---
     toggleBtn.addEventListener('click', () => {
         isRunning = !isRunning;
         updateUIState(isRunning);
         
-        // Wyślij sygnał do content.js
         chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
             if (tabs.length === 0) return;
             
             if (isRunning) {
-                const selectedVoiceName = voiceSelect.value;
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: "start_local",
-                    voiceName: selectedVoiceName
-                });
+                // Tryb Zdalny czy Lokalny?
+                if (currentMode === 'remote') {
+                     // Inicjalizacja Remote już poszła przy generowaniu kodu
+                     // Ale wysyłamy start, żeby content script wiedział
+                     chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "init_remote",
+                        sessionId: sessionId
+                    });
+                } else {
+                    // Tryb Lokalny - wysyłamy nazwę głosu
+                    const selectedVoiceName = voiceSelect.value;
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "start",
+                        voiceName: selectedVoiceName
+                    });
+                }
             } else {
                 chrome.tabs.sendMessage(tabs[0].id, {action: "stop"});
             }

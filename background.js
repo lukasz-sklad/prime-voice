@@ -1,43 +1,73 @@
 importScripts('libs/mqtt.min.js');
 
 let mqttClient = null;
+let currentVoiceName = null;
 
 // Broker publiczny
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
-    // --- REMOTE ---
+    // --- USTAWIENIE GŁOSU (LOKALNY) ---
+    if (request.action === "set_voice") {
+        currentVoiceName = request.voiceName;
+        console.log("[Background] Voice set to:", currentVoiceName);
+    }
+
+    // --- GŁÓWNA KOMENDA MÓWIENIA ---
+    if (request.action === "speak") {
+        const text = request.text;
+        const mode = request.mode || 'local';
+        
+        if (mode === 'remote') {
+            const sessionId = request.sessionId;
+            // Pobieramy sesję z parametru lub storage w razie potrzeby
+            if (sessionId) {
+                publishText(text, sessionId);
+            } else {
+                console.warn("[Background] Missing sessionId for remote speak");
+            }
+        } else {
+            // Lokalny TTS (obsługuje Piper Extension)
+            speakLocal(text);
+        }
+    }
+
+    // --- ZDALNE STEROWANIE ---
     if (request.action === "init_remote") {
         const sessionId = request.sessionId;
-        chrome.storage.local.set({ sessionId: sessionId }, () => {
-            console.log("Session saved:", sessionId);
-            connectToMqtt(sessionId);
-        });
+        console.log("[Background] Init Remote:", sessionId);
+        connectToMqtt(sessionId);
         sendResponse({status: "connecting"});
         return true;
     }
 
-    if (request.action === "speak_remote") {
-        const text = request.text;
-        if (!text) return;
-
-        chrome.storage.local.get(['sessionId'], (res) => {
-            if (res.sessionId) {
-                publishText(text, res.sessionId);
-            }
-        });
-        sendResponse({status: "processing"});
-    }
-
-    if (request.action === "stop_remote") {
-        if (mqttClient) {
-            mqttClient.end();
-            mqttClient = null;
-        }
-        chrome.storage.local.remove(['sessionId']);
+    // --- ZATRZYMYWANIE ---
+    if (request.action === "stop_all" || request.action === "stop_remote") {
+        chrome.tts.stop();
+        // MQTT nie rozłączamy, żeby było gotowe
     }
 });
+
+function speakLocal(text) {
+    chrome.tts.stop(); // Przerywamy poprzednie zdanie, żeby nie było kolejki
+    
+    const options = {
+        rate: 1.2
+    };
+    
+    if (currentVoiceName) {
+        options.voiceName = currentVoiceName;
+    }
+    
+    console.log(`[TTS] Speaking: ${text} (${currentVoiceName || 'default'})`);
+    
+    chrome.tts.speak(text, options, () => {
+        if (chrome.runtime.lastError) {
+            console.error("[TTS Error]:", chrome.runtime.lastError.message);
+        }
+    });
+}
 
 function connectToMqtt(sessionId) {
     if (mqttClient && mqttClient.connected) return;
@@ -52,6 +82,8 @@ function connectToMqtt(sessionId) {
             msg: 'CONNECTED_HOST'
         }));
     });
+    
+    mqttClient.on('error', (err) => console.error("MQTT Error:", err));
 }
 
 function publishText(text, sessionId) {
