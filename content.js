@@ -106,9 +106,8 @@ function speak(text) {
         // Kolorowe logi dla widoczności w konsoli
         console.log(`%c > REMOTE SEND: ${cleanedText} `, "background: #0000AA; color: #FFF; font-size: 14px; padding: 4px;");
         chrome.runtime.sendMessage({
-            action: "speak",
+            action: "speak_remote", // Przywrócono dedykowaną akcję
             text: cleanedText,
-            mode: 'remote',
             sessionId: currentSessionId
         });
     } else {

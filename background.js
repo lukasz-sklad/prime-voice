@@ -14,7 +14,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("[Background] Voice set to:", currentVoiceName);
     }
 
-    // --- GŁÓWNA KOMENDA MÓWIENIA ---
+    // --- ZDALNE MÓWIENIE (DEDYKOWANE) ---
+    if (request.action === "speak_remote") {
+        if (request.sessionId) {
+            publishText(request.text, request.sessionId);
+        } else {
+            console.warn("[Background] Missing sessionId for speak_remote");
+        }
+    }
+
+    // --- GŁÓWNA KOMENDA MÓWIENIA (LOKALNE) ---
     if (request.action === "speak") {
         const text = request.text;
         const mode = request.mode || 'local';
