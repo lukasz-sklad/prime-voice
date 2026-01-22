@@ -34,8 +34,10 @@
     {
       "resources": [
         "libs/mqtt.min.js",
-        "libs/piper_phonemize.js",
+        "libs/piper-tts-web.js",
         "libs/piper_phonemize.wasm",
+        "libs/piper_phonemize.data",
+        "libs/worker/*",
         "libs/ort.min.js"
       ],
       "matches": ["<all_urls>"]

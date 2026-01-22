@@ -1,59 +1,47 @@
-// offscreen.js - Pełny silnik Piper TTS (Lokalny WASM)
+import { 
+    PiperWebEngine, 
+    PhonemizeWebRuntime, 
+    OnnxWebRuntime,
+    FetchProvider 
+} from './libs/piper-tts-web.js';
 
-let session = null;
-let currentVoiceId = null;
-let phonemizerModule = null;
+let engine = null;
+let activeSession = null;
 
-const FILES = {
-    wasm: 'libs/piper_phonemize.wasm',
-    js: 'libs/piper_phonemize.js',
-    voices: {
-        'pl_PL-gosia-medium': {
-            onnx: 'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx',
-            json: 'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx.json'
-        },
-        'pl_PL-mw-medium': {
-            onnx: 'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pl/pl_PL/mw/medium/pl_PL-mw-medium.onnx',
-            json: 'https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pl/pl_PL/mw/medium/pl_PL-mw-medium.onnx.json'
-        }
-    }
-};
+// Niestandardowy Provider do plików lokalnych (jeśli biblioteka wspiera)
+// Ale biblioteka używa FetchProvider.
 
-async function loadPhonemizer() {
-    if (phonemizerModule) return phonemizerModule;
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = FILES.js;
-        script.onload = async () => {
-            try {
-                const module = await createPiperPhonemize({
-                    locateFile: (path) => path.endsWith('.wasm') ? FILES.wasm : path
-                });
-                phonemizerModule = module;
-                resolve(module);
-            } catch (e) { reject(e); }
-        };
-        script.onerror = () => reject("Brak pliku libs/piper_phonemize.js");
-        document.head.appendChild(script);
+async function getEngine() {
+    if (engine) return engine;
+
+    console.log("[Piper] Tworzenie silnika...");
+    
+    // Konfiguracja Phonemizer Runtime (wskazujemy folder libs/)
+    const phonemizeRuntime = new PhonemizeWebRuntime({
+        basePath: chrome.runtime.getURL('libs/') // Pełna ścieżka: chrome-extension://.../libs/
     });
-}
-
-async function loadVoice(voiceId) {
-    if (session && currentVoiceId === voiceId) return session;
-    const config = FILES.voices[voiceId];
-    session = await ort.InferenceSession.create(config.onnx, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all'
+    
+    // Konfiguracja ONNX Runtime (wskazujemy workery w libs/worker/)
+    // OnnxWebRuntime zazwyczaj nie potrzebuje ścieżki w konstruktorze, ale jego worker tak.
+    // Biblioteka Poket-Jony może mieć hardcodowane ścieżki do workerów.
+    // Zaryzykujmy domyślny, a jeśli błąd - będziemy patchować.
+    
+    engine = new PiperWebEngine({
+        phonemizeRuntime: phonemizeRuntime
+        // onnxRuntime: ... (zostawiamy domyślny)
     });
-    currentVoiceId = voiceId;
-    return session;
+    
+    return engine;
 }
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playAudio(pcmData, sampleRate) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
     const buffer = audioCtx.createBuffer(1, pcmData.length, sampleRate);
     buffer.getChannelData(0).set(pcmData);
+    
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(audioCtx.destination);
@@ -62,25 +50,43 @@ function playAudio(pcmData, sampleRate) {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'speak_piper') {
+        const text = msg.text;
+        const voiceId = msg.voiceId || 'pl_PL-gosia-medium';
+
         (async () => {
             try {
-                await loadPhonemizer();
-                await loadVoice(msg.voiceId);
+                const eng = await getEngine();
                 
-                // 1. Phonemize
-                const phonemeIds = phonemizerModule.phonemize(msg.text, "pl-PL"); // To wymaga poprawnej integracji API
+                console.log(`[Piper] Generowanie: "${text}" (${voiceId})`);
                 
-                // 2. Inference
-                const input = new ort.Tensor('int64', BigInt64Array.from(phonemeIds.map(BigInt)), [1, phonemeIds.length]);
-                const results = await session.run({
-                    input: input,
-                    input_lengths: new ort.Tensor('int64', [BigInt(phonemeIds.length)], [1]),
-                    scales: new ort.Tensor('float32', [0.667, 1.0, 0.8], [3])
-                });
+                // generate(text, voiceId, speakerId)
+                // Biblioteka pobierze model ONNX automatycznie przez HuggingFaceProvider (domyślny)
+                // Cache API w przeglądarce powinno to zapamiętać po pierwszym razie.
                 
-                playAudio(results.output.data, 22050);
-            } catch (e) { console.error(e); }
+                const result = await eng.generate(text, voiceId);
+                
+                // result.audio to prawdopodobnie Float32Array (surowe PCM)
+                // result.sampleRate
+                
+                if (result && result.audio) {
+                     // Sprawdź format. Biblioteka zwraca obiekt { audio: Float32Array, sampleRate: number }?
+                     // W kodzie źródłowym PiperWebEngine.js: return response;
+                     // A OnnxRuntime.generate zwraca: { audio: Float32Array, sampleRate: ... }
+                     // Zakładamy że tak jest.
+                     
+                     const sampleRate = result.sampleRate || 22050;
+                     playAudio(result.audio, sampleRate);
+                     console.log("[Piper] Odtwarzanie...");
+                }
+
+            } catch (err) {
+                console.error("[Piper Error]", err);
+            }
         })();
+        
+        sendResponse({status: "processing"});
     }
-    return true;
+    return true; // Keep channel open
 });
+
+console.log("[Offscreen] Moduł załadowany.");
