@@ -4,13 +4,12 @@ let synthesis = window.speechSynthesis;
 let selectedVoice = null;
 let isEnabled = false;
 let isRemote = false; // Tryb zdalny
-let isPiper = false; // Tryb Piper WASM
 let currentSessionId = null;
 
 let debounceTimer = null;
 let isBlockedTemporarily = false;
 
-console.log("%c > PRIME VOICE HACK v3.0 (WASM READY) INJECTED < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0;");
+console.log("%c > PRIME VOICE HACK v3.1 (LITE) INJECTED < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0;");
 
 // Rozszerzona lista selektorów
 const SUBTITLE_SELECTORS = [
@@ -29,7 +28,7 @@ const FORBIDDEN_WORDS = [
     "Filipino", "Indonesia", "العربية", "ไทย"
 ];
 
-const FORBIDDEN_REGEX = new RegExp(FORBIDDEN_WORDS.map(w => w.replace(/[.*+?^${}()|[\\]/g, '\\$&')).join('|'), 'gi');
+const FORBIDDEN_REGEX = new RegExp(FORBIDDEN_WORDS.map(w => w.replace(/[.*+?^${}()|[\\\]/g, '\\$&')).join('|'), 'gi');
 
 function setVoice(voiceName) {
     const voices = synthesis.getVoices();
@@ -110,12 +109,6 @@ function speak(text) {
             action: "speak_remote",
             text: cleanedText,
             sessionId: currentSessionId
-        });
-    } else if (isPiper) {
-        console.log(`> PIPER SEND: ${cleanedText}`);
-        chrome.runtime.sendMessage({
-            action: "speak_piper",
-            text: cleanedText
         });
     } else {
         synthesis.cancel();
@@ -199,22 +192,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "start_local") {
         isEnabled = true;
         isRemote = false;
-        isPiper = false;
         if (request.voiceName) setVoice(request.voiceName);
         startObserving();
         console.log("> MODE: LOCAL STARTED");
     
-    } else if (request.action === "start_piper") {
-        isEnabled = true;
-        isRemote = false;
-        isPiper = true;
-        startObserving();
-        console.log("> MODE: PIPER WASM STARTED");
-
     } else if (request.action === "init_remote") {
         isEnabled = true;
         isRemote = true;
-        isPiper = false;
         currentSessionId = request.sessionId;
         
         chrome.runtime.sendMessage({
@@ -233,7 +217,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.runtime.sendMessage({ action: "stop_remote" });
         }
         isRemote = false;
-        isPiper = false;
         console.log("> STOPPED");
     }
 });

@@ -5,53 +5,8 @@ let mqttClient = null;
 // Broker publiczny
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 
-// --- OFFSCREEN SETUP (PIPER WASM) ---
-async function createOffscreen() {
-    if (await chrome.offscreen.hasDocument()) return;
-    await chrome.offscreen.createDocument({
-        url: 'offscreen.html',
-        reasons: ['AUDIO_PLAYBACK'],
-        justification: 'Piper TTS synthesis'
-    });
-}
-createOffscreen(); // Startujemy silnik od razu
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
-    // --- PIPER LOCAL (WASM) ---
-    if (request.action === "init_piper") {
-        console.log("Background: Init Piper requested");
-        
-        // Odpowiadamy natychmiast, żeby nie blokować popupu
-        sendResponse({status: "initializing_started"});
-        
-        // Logika w tle
-        createOffscreen()
-            .then(() => {
-                // Czekamy dłużej, aż potężna biblioteka JS (44MB) się załaduje
-                setTimeout(() => {
-                    chrome.runtime.sendMessage({
-                        type: 'init_piper',
-                        voiceId: request.voiceId
-                    });
-                }, 3000);
-            })
-            
-        return false; // Nie czekamy asynchronicznie na sendResponse
-    }
-
-    if (request.action === "speak_piper") {
-        createOffscreen().then(() => {
-            chrome.runtime.sendMessage({
-                type: 'speak_piper',
-                text: request.text,
-                voiceId: request.voiceId
-            });
-        });
-        sendResponse({status: "processing_local"});
-        return true;
-    }
-
     // --- REMOTE ---
     if (request.action === "init_remote") {
         const sessionId = request.sessionId;
@@ -70,8 +25,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.local.get(['sessionId'], (res) => {
             if (res.sessionId) {
                 publishText(text, res.sessionId);
-            } else {
-                console.error("No session ID found in storage!");
             }
         });
         sendResponse({status: "processing"});

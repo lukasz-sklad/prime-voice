@@ -6,7 +6,7 @@
   <script src="libs/qrcode.min.js"></script>
   <style>
     body {
-      width: 380px;
+      width: 360px;
       background-color: #0d1117;
       color: #c9d1d9;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -145,7 +145,6 @@
 
   <div class="tabs">
       <div class="tab active" data-target="localPanel">Lokalny</div>
-      <div class="tab" data-target="piperPanel">Piper (WASM)</div>
       <div class="tab" data-target="remotePanel">Zdalny</div>
   </div>
 
@@ -155,30 +154,15 @@
       <select id="voiceSelect">
         <option value="" disabled selected>Ładowanie głosów...</option>
       </select>
+      
+      <div style="font-size:11px; margin-bottom:15px; color:#8b949e; text-align:right;">
+          <a href="https://chromewebstore.google.com/detail/piper-text-to-speech-voic/ppnfahcipommelgaapjalhooaeeblmeg" target="_blank" style="color:#58a6ff; text-decoration:none;">
+              + Zainstaluj głosy AI (Piper)
+          </a>
+      </div>
 
       <button id="toggleBtn">Uruchom Lektora</button>
       <div id="statusLog">Gotowy do działania</div>
-  </div>
-
-  <!-- PANEL PIPER (WASM) -->
-  <div id="piperPanel" class="hidden">
-      <div style="font-size: 12px; margin-bottom: 10px; color: #aaa;">
-          Synteza offline w jakości Neural (wymaga pobrania).
-      </div>
-      
-      <select id="piperVoiceSelect">
-          <option value="pl_PL-gosia-medium" data-size="45MB">Gosia PL (Medium)</option>
-          <option value="pl_PL-mw-medium" data-size="60MB">Marek PL (Medium)</option>
-          <option value="en_US-ryan-medium" data-size="40MB">Ryan US (Medium)</option>
-      </select>
-
-      <button id="downloadPiperBtn">Pobierz Model (?? MB)</button>
-      <div id="piperStatus" style="margin-top:5px; font-size:11px; color:#8b949e;">Status: Nie pobrano</div>
-      
-      <div id="piperControls" class="hidden" style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
-           <button id="activatePiperBtn">Uruchom Pipera</button>
-           <div style="font-size:10px; color:#aaa; margin-top:5px;">Model załadowany w tle (Offscreen).</div>
-      </div>
   </div>
 
   <!-- PANEL ZDALNY -->

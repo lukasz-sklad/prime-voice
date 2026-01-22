@@ -1,12 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Prime Voice Hack v2.0",
-  "version": "2.0",
+  "name": "Prime Voice Hack v3.1",
+  "version": "3.1",
   "description": "Odczytuje napisy z Prime Video (Lokalnie lub na Telefonie).",
   "permissions": [
     "activeTab",
-    "storage",
-    "offscreen"
+    "storage"
   ],
   "host_permissions": [
     "*://broker.emqx.io/*",
@@ -32,20 +31,8 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "libs/mqtt.min.js",
-        "libs/piper-tts-web.js",
-        "libs/piper_phonemize.wasm",
-        "libs/piper_phonemize.data",
-        "libs/worker/*",
-        "libs/ort.min.js",
-        "libs/ort-wasm.wasm",
-        "libs/ort-wasm-simd.wasm"
-      ],
+      "resources": ["libs/mqtt.min.js"],
       "matches": ["<all_urls>"]
     }
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  ]
 }
