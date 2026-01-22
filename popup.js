@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabs = document.querySelectorAll('.tab');
     const panels = {
         localPanel: document.getElementById('localPanel'),
-        remotePanel: document.getElementById('remotePanel')
+        remotePanel: document.getElementById('remotePanel'),
+        piperPanel: document.getElementById('piperPanel')
     };
     
     // Elementy Remote
@@ -15,8 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const qrContainer = document.getElementById('qrCode');
     const directLink = document.getElementById('directLink');
 
+    // Elementy Piper
+    const downloadPiperBtn = document.getElementById('downloadPiperBtn');
+    const activatePiperBtn = document.getElementById('activatePiperBtn');
+    const piperStatus = document.getElementById('piperStatus');
+    const piperControls = document.getElementById('piperControls');
+
     let isRunning = false;
-    let currentMode = 'local'; // 'local' | 'remote'
+    let currentMode = 'local'; // 'local' | 'remote' | 'piper'
     let sessionId = null;
 
     // --- OBSŁUGA ZAKŁADEK ---
@@ -26,15 +33,56 @@ document.addEventListener('DOMContentLoaded', () => {
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             
-            Object.values(panels).forEach(p => p.classList.add('hidden'));
+            Object.values(panels).forEach(p => {
+                if(p) p.classList.add('hidden');
+            });
+            
             const targetId = tab.getAttribute('data-target');
-            panels[targetId].classList.remove('hidden');
-
-            // Logic Update
-            currentMode = targetId === 'localPanel' ? 'local' : 'remote';
-            console.log("Mode switched to:", currentMode);
+            if (panels[targetId]) {
+                panels[targetId].classList.remove('hidden');
+                
+                // Logic Update
+                if (targetId === 'localPanel') currentMode = 'local';
+                else if (targetId === 'remotePanel') currentMode = 'remote';
+                else if (targetId === 'piperPanel') currentMode = 'piper';
+                
+                console.log("Mode switched to:", currentMode);
+            }
         });
     });
+
+    // --- OBSŁUGA PIPERA (UI MOCKUP) ---
+    if (downloadPiperBtn) {
+        downloadPiperBtn.addEventListener('click', () => {
+            downloadPiperBtn.textContent = "Pobieranie... (Symulacja)";
+            piperStatus.textContent = "Status: Pobieranie modelu (0%)...";
+            
+            setTimeout(() => {
+                piperStatus.textContent = "Status: Gotowe (Offline)";
+                piperControls.classList.remove('hidden');
+                downloadPiperBtn.textContent = "Pobierz ponownie";
+                downloadPiperBtn.style.backgroundColor = "#238636";
+            }, 1500);
+        });
+    }
+
+    if (activatePiperBtn) {
+        activatePiperBtn.addEventListener('click', () => {
+            // Tutaj wyślemy sygnał do content.js -> background.js -> offscreen
+            isRunning = !isRunning;
+            activatePiperBtn.textContent = isRunning ? "Zatrzymaj Pipera" : "Uruchom Pipera";
+            activatePiperBtn.classList.toggle('running', isRunning);
+            
+            // Informujemy content script
+             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+                if (tabs.length === 0) return;
+                
+                // Logika startu dla Pipera (jeszcze niezaimplementowana w content.js w pełni)
+                // Użyjemy flagi init_piper w przyszłości
+                console.log("Piper activation toggled");
+            });
+        });
+    }
 
     // --- ŁADOWANIE GŁOSÓW (LOKALNE) ---
     let voiceLoadAttempts = 0;

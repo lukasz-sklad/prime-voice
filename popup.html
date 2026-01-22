@@ -6,7 +6,7 @@
   <script src="libs/qrcode.min.js"></script>
   <style>
     body {
-      width: 360px;
+      width: 380px;
       background-color: #0d1117;
       color: #c9d1d9;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -67,6 +67,12 @@
     button.running:hover {
       background-color: #f85149;
     }
+    
+    /* Przyciski specyficzne */
+    #downloadPiperBtn { background-color: #8957e5; }
+    #downloadPiperBtn:hover { background-color: #9e6cf5; }
+    #connectRemoteBtn { background-color: #1f6feb; }
+    #connectRemoteBtn:hover { background-color: #388bfd; }
 
     #statusLog {
       margin-top: 10px;
@@ -135,11 +141,12 @@
   </style>
 </head>
 <body>
-  <h1>Prime Voice Hack <span style="font-size:10px; opacity:0.5">v2.0</span></h1>
+  <h1>Prime Voice Hack <span style="font-size:10px; opacity:0.5">v3.0 WASM</span></h1>
 
   <div class="tabs">
-      <div class="tab active" data-target="localPanel">Lokalny (PC)</div>
-      <div class="tab" data-target="remotePanel">Zdalny (Android)</div>
+      <div class="tab active" data-target="localPanel">Lokalny</div>
+      <div class="tab" data-target="piperPanel">Piper (WASM)</div>
+      <div class="tab" data-target="remotePanel">Zdalny</div>
   </div>
 
   <!-- PANEL LOKALNY -->
@@ -153,13 +160,34 @@
       <div id="statusLog">Gotowy do działania</div>
   </div>
 
+  <!-- PANEL PIPER (WASM) -->
+  <div id="piperPanel" class="hidden">
+      <div style="font-size: 12px; margin-bottom: 10px; color: #aaa;">
+          Synteza offline w jakości Neural (wymaga pobrania).
+      </div>
+      
+      <select id="piperVoiceSelect">
+          <option value="pl_PL-gosia-medium" data-size="45MB">Gosia PL (Medium)</option>
+          <option value="pl_PL-mw-medium" data-size="60MB">Marek PL (Medium)</option>
+          <option value="en_US-ryan-medium" data-size="40MB">Ryan US (Medium)</option>
+      </select>
+
+      <button id="downloadPiperBtn">Pobierz Model (?? MB)</button>
+      <div id="piperStatus" style="margin-top:5px; font-size:11px; color:#8b949e;">Status: Nie pobrano</div>
+      
+      <div id="piperControls" class="hidden" style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+           <button id="activatePiperBtn">Uruchom Pipera</button>
+           <div style="font-size:10px; color:#aaa; margin-top:5px;">Model załadowany w tle (Offscreen).</div>
+      </div>
+  </div>
+
   <!-- PANEL ZDALNY -->
   <div id="remotePanel" class="hidden">
       <div style="font-size: 12px; margin-bottom: 10px; color: #aaa;">
           Użyj telefonu jako głośnika (lepsze głosy Google/Samsung).
       </div>
       
-      <button id="connectRemoteBtn" style="background-color: #1f6feb;">Generuj Kod Połączenia</button>
+      <button id="connectRemoteBtn">Generuj Kod Połączenia</button>
       
       <div id="remoteSection" class="hidden">
           <div id="qrCode"></div>

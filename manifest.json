@@ -5,7 +5,8 @@
   "description": "Odczytuje napisy z Prime Video (Lokalnie lub na Telefonie).",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "offscreen"
   ],
   "host_permissions": [
     "*://broker.emqx.io/*",
