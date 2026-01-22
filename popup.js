@@ -146,26 +146,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentMode === 'remote') {
                     // Jeśli sessionId puste, wygeneruj
                     if (!sessionId) {
-                        connectRemoteBtn.click(); // Symulacja kliknięcia żeby wygenerować ID
+                        connectRemoteBtn.click(); 
                     }
-                    // Wyślij start z małym opóźnieniem żeby ID zdążyło się ustawić
                     setTimeout(() => {
                         chrome.tabs.sendMessage(tabs[0].id, {
                             action: "init_remote",
                             sessionId: sessionId
-                        });
+                        }, handleContentResponse);
                     }, 100);
                 } else {
                     chrome.tabs.sendMessage(tabs[0].id, {
                         action: "start",
                         voiceName: voiceSelect.value
-                    });
+                    }, handleContentResponse);
                 }
             } else {
-                chrome.tabs.sendMessage(tabs[0].id, { action: "stop" });
+                chrome.tabs.sendMessage(tabs[0].id, { action: "stop" }, handleContentResponse);
             }
         });
     });
+    
+    function handleContentResponse(response) {
+        if (chrome.runtime.lastError) {
+            console.error("Communication error:", chrome.runtime.lastError.message);
+            statusLog.innerHTML = "⚠️ BŁĄD POŁĄCZENIA<br>Odśwież stronę z filmem (F5)!";
+            statusLog.style.color = "red";
+            toggleBtn.textContent = "BŁĄD - ODŚWIEŻ F5";
+            toggleBtn.style.backgroundColor = "#555";
+        }
+    }
 
     // --- REMOTE QR ---
     connectRemoteBtn.addEventListener('click', () => {

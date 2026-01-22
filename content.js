@@ -9,7 +9,7 @@ let currentSessionId = null;
 let debounceTimer = null;
 let isBlockedTemporarily = false;
 
-console.log("%c > PRIME VOICE HACK v3.1 (LITE) INJECTED < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0;");
+console.log("%c > PRIME VOICEREADER v3.2 (DIAGNOSTIC MODE) < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0; padding: 10px;");
 
 // Rozszerzona lista selektorów
 const SUBTITLE_SELECTORS = [
@@ -28,7 +28,7 @@ const FORBIDDEN_WORDS = [
     "Filipino", "Indonesia", "العربية", "ไทย"
 ];
 
-const FORBIDDEN_REGEX = new RegExp(FORBIDDEN_WORDS.map(w => w.replace(/[.*+?^${}()|[\\\]/g, '\\$&')).join('|'), 'gi');
+const FORBIDDEN_REGEX = new RegExp(FORBIDDEN_WORDS.map(w => w.replace(/[.*+?^${}()|[\\]/g, '\\$&')).join('|'), 'gi');
 
 function setVoice(voiceName) {
     const voices = synthesis.getVoices();
@@ -101,15 +101,27 @@ function speak(text) {
     
     lastText = cleanedText;
 
-    // --- WYSYŁANIE DO BACKGROUNDU ---
-    console.log(`> SENDING [${isRemote ? 'REMOTE' : 'LOCAL'}]: ${cleanedText}`);
-    
-    chrome.runtime.sendMessage({
-        action: "speak",
-        text: cleanedText,
-        mode: isRemote ? 'remote' : 'local',
-        sessionId: currentSessionId
-    });
+    // --- LOGIKA MÓWIENIA ---
+    if (isRemote) {
+        // Kolorowe logi dla widoczności w konsoli
+        console.log(`%c > REMOTE SEND: ${cleanedText} `, "background: #0000AA; color: #FFF; font-size: 14px; padding: 4px;");
+        chrome.runtime.sendMessage({
+            action: "speak",
+            text: cleanedText,
+            mode: 'remote',
+            sessionId: currentSessionId
+        });
+    } else {
+        // Kolorowe logi dla widoczności w konsoli
+        console.log(`%c > LOCAL READ: ${cleanedText} `, "background: #AAAA00; color: #000; font-size: 14px; padding: 4px;");
+        
+        // Lokalnie wysyłamy do background (aby użył chrome.tts)
+        chrome.runtime.sendMessage({
+            action: "speak",
+            text: cleanedText,
+            mode: 'local'
+        });
+    }
 }
 
 function startObserving() {
@@ -121,7 +133,7 @@ function startObserving() {
     });
 
     observer.observe(targetNode, { childList: true, subtree: true, characterData: true });
-    console.log("> OBSERVER STARTED");
+    console.log("%c > OBSERVER STARTED < ", "color: #0f0; font-weight: bold; font-size: 16px;");
 }
 
 function handleMutations() {
@@ -151,8 +163,9 @@ function checkForSubtitles() {
             const text = el.innerText;
             if (!text || text.trim().length === 0) return;
 
+            // Logujemy wszystko co znajdziemy
             if (debugMode && Math.random() > 0.95) { 
-                console.log(`[DEBUG SCAN] Found in '${selector}': "${text.substring(0, 30)}"...`);
+                console.log(`[SCAN] Found in ${selector}: "${text.substring(0, 30)}"...`);
             }
             
             if (isSafeToRead(text)) {
@@ -161,7 +174,7 @@ function checkForSubtitles() {
                     bestCandidate = text;
                 }
             } else {
-                 if (debugMode && Math.random() > 0.98) console.log(`[DEBUG REJECTED] "${text.substring(0, 30)}"...`);
+                 if (debugMode && Math.random() > 0.98) console.log(`[REJECTED] "${text.substring(0, 30)}"...`);
             }
         });
     }
@@ -178,7 +191,6 @@ function stopObserving() {
     }
     if (debounceTimer) clearTimeout(debounceTimer);
     
-    // Stop local TTS via background
     chrome.runtime.sendMessage({ action: "stop_all" });
 }
 
@@ -187,29 +199,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         isEnabled = true;
         isRemote = false;
         
-        // Ustawiamy głos w backgroundzie
+        console.log("%c > START SIGNAL RECEIVED (LOCAL) < ", "color: cyan; font-weight: bold;");
+
         if (request.voiceName) {
-            chrome.runtime.sendMessage({ 
+            chrome.runtime.sendMessage({
                 action: "set_voice", 
                 voiceName: request.voiceName 
             });
         }
         
         startObserving();
-        console.log("> MODE: LOCAL STARTED");
     
     } else if (request.action === "init_remote") {
         isEnabled = true;
         isRemote = true;
         currentSessionId = request.sessionId;
         
+        console.log(`%c > START SIGNAL RECEIVED (REMOTE: ${request.sessionId}) < `, "color: magenta; font-weight: bold;");
+
         chrome.runtime.sendMessage({
             action: "init_remote",
             sessionId: request.sessionId
         });
         
         startObserving();
-        console.log(`> MODE: REMOTE STARTED (Session: ${request.sessionId})`);
 
     } else if (request.action === "stop") {
         isEnabled = false;
@@ -219,6 +232,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.runtime.sendMessage({ action: "stop_remote" });
         }
         isRemote = false;
-        console.log("> STOPPED");
+        console.log("%c > STOP SIGNAL RECEIVED < ", "color: red; font-weight: bold;");
     }
 });
