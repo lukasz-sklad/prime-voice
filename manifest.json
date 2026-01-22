@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Prime Voice Hack v1.0",
+  "version": "1.0",
+  "description": "Odczytuje napisy z Prime Video w czasie rzeczywistym.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.amazon.com/*", "*://*.primevideo.com/*"],
+      "js": ["content.js"],
+      "css": ["hacker_overlay.css"]
+    }
+  ]
+}
