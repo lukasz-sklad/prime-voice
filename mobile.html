@@ -185,24 +185,27 @@
         }
 
         function speak(text) {
-            synth.cancel();
+            // synth.cancel(); // Nie przerywaj, kolejkuj
             const u = new SpeechSynthesisUtterance(text);
             
-            // Lepszy wybór głosu
             let v = null;
+            // Tylko jeśli użytkownik świadomie wybrał głos
             if (voiceSelect.value && voiceSelect.value !== "Ładowanie głosów...") {
                 v = synth.getVoices().find(vo => vo.name === voiceSelect.value);
             }
-            // Fallback na PL
-            if (!v) {
-                v = synth.getVoices().find(vo => vo.lang.includes('pl'));
+            
+            if (v) {
+                u.voice = v;
+                log(`[TTS Config] Głos: ${v.name}`);
+            } else {
+                log(`[TTS Config] Głos: Domyślny (pl-PL)`);
             }
             
-            if (v) u.voice = v;
             u.lang = 'pl-PL';
             u.rate = 1.0; 
             
             u.onstart = () => log(" [Audio Start]");
+            u.onend = () => log(" [Audio End]");
             u.onerror = (e) => log("Błąd TTS: " + (e.error || "nieznany"));
             
             synth.speak(u);
