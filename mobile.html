@@ -122,7 +122,8 @@
 
         startBtn.addEventListener('click', () => {
             // Wymuszenie odblokowania AudioContext
-            const u = new SpeechSynthesisUtterance("Połączono");
+            const u = new SpeechSynthesisUtterance("Głos aktywny");
+            u.lang = 'pl-PL';
             synth.speak(u);
             
             startBtn.style.display = 'none';
@@ -187,17 +188,24 @@
             synth.cancel();
             const u = new SpeechSynthesisUtterance(text);
             
-            const voiceName = voiceSelect.value;
-            const voices = synth.getVoices();
-            const v = voices.find(vo => vo.name === voiceName);
+            // Lepszy wybór głosu
+            let v = null;
+            if (voiceSelect.value && voiceSelect.value !== "Ładowanie głosów...") {
+                v = synth.getVoices().find(vo => vo.name === voiceSelect.value);
+            }
+            // Fallback na PL
+            if (!v) {
+                v = synth.getVoices().find(vo => vo.lang.includes('pl'));
+            }
+            
             if (v) u.voice = v;
+            u.lang = 'pl-PL';
+            u.rate = 1.0; 
             
-            u.rate = 1.0; // Bezpieczniejsza prędkość na start
-            
-            u.onerror = (e) => log("Błąd TTS: " + e.error);
+            u.onstart = () => log(" [Audio Start]");
+            u.onerror = (e) => log("Błąd TTS: " + (e.error || "nieznany"));
             
             synth.speak(u);
-            log("Mówię: " + text.substring(0, 20) + "...");
         }
 
     </script>
