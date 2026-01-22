@@ -37,15 +37,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- ŁADOWANIE GŁOSÓW (LOKALNE) ---
+    let voiceLoadAttempts = 0;
+    
     function loadVoices() {
         let voices = speechSynthesis.getVoices();
         voiceSelect.innerHTML = '';
 
         if (voices.length === 0) {
-            // Retry strategy
-            setTimeout(loadVoices, 100);
+            voiceLoadAttempts++;
+            if (voiceLoadAttempts < 10) {
+                // Próbuj przez ok. 2 sekundy (10 * 200ms)
+                setTimeout(loadVoices, 200);
+            } else {
+                // Poddajemy się - brak głosów systemowych
+                const option = document.createElement('option');
+                option.text = "⚠️ BRAK GŁOSÓW SYSTEMOWYCH";
+                voiceSelect.appendChild(option);
+                
+                const option2 = document.createElement('option');
+                option2.text = ">> Przełącz na tryb ZDALNY (Telefon) >>";
+                voiceSelect.appendChild(option2);
+                
+                statusLog.innerHTML = "Brak głosów TTS w systemie.<br>Użyj telefonu (zakładka Zdalny).";
+                statusLog.style.color = "orange";
+            }
             return;
         }
+
+        // Reset licznika jeśli się udało
+        voiceLoadAttempts = 0;
 
         // Sortowanie: Najpierw PL, potem reszta. W ramach PL, preferuj Google/Microsoft
         voices.sort((a, b) => {
