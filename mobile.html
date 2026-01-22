@@ -40,18 +40,22 @@
             margin-bottom: 10px;
         }
         .log {
-            font-family: monospace;
-            font-size: 10px;
-            color: #555;
-            max-height: 100px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #0f0;
+            background: #000;
+            border: 1px solid #30363d;
+            padding: 10px;
+            max-height: 60vh;
             overflow-y: auto;
             width: 90%;
             text-align: left;
+            white-space: pre-wrap;
         }
     </style>
 </head>
 <body>
-    <h1>Prime Voice Mobile</h1>
+    <h1>Prime Voice Receiver</h1>
     <div class="status" id="status">Oczekiwanie na aktywację...</div>
     
     <select id="voiceSelect">
@@ -73,7 +77,9 @@
         let synth = window.speechSynthesis;
 
         function log(msg) {
-            logEl.innerText = `> ${msg}\n` + logEl.innerText;
+            const time = new Date().toLocaleTimeString().split(' ')[0];
+            logEl.innerText += `[${time}] ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
         }
 
         // 1. Ładowanie głosów

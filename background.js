@@ -50,21 +50,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 function speakLocal(text) {
-    chrome.tts.stop(); // Przerywamy poprzednie zdanie, żeby nie było kolejki
+    // chrome.tts.stop(); // Usunięte - przerywanie może psuć Pipera Extension
     
     const options = {
-        rate: 1.2
+        rate: 1.2,
+        enqueue: false // Przerywaj poprzednie
     };
     
     if (currentVoiceName) {
         options.voiceName = currentVoiceName;
     }
     
-    console.log(`[TTS] Speaking: ${text} (${currentVoiceName || 'default'})`);
+    console.log(`[TTS] Speaking: "${text}" (Voice: ${currentVoiceName || 'Default'})`);
     
     chrome.tts.speak(text, options, () => {
         if (chrome.runtime.lastError) {
             console.error("[TTS Error]:", chrome.runtime.lastError.message);
+            // Częsty błąd: "Invalid voice". Może trzeba przekazać też lang?
         }
     });
 }
