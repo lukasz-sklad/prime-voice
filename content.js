@@ -9,7 +9,25 @@ let currentSessionId = null;
 let debounceTimer = null;
 let isBlockedTemporarily = false;
 
-console.log("%c > PRIME VOICEREADER v3.2 (DIAGNOSTIC MODE) < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0; padding: 10px;");
+// --- PRZYWRACANIE SESJI PO F5 ---
+chrome.storage.local.get(['sessionId'], (result) => {
+    if (result.sessionId) {
+        currentSessionId = result.sessionId;
+        isRemote = true;
+        isEnabled = true;
+        console.log(`%c > RESTORED REMOTE SESSION: ${currentSessionId} < `, "color: magenta; font-weight: bold;");
+        
+        // Upewnij się, że background też jest gotowy
+        chrome.runtime.sendMessage({ 
+            action: "init_remote", 
+            sessionId: currentSessionId 
+        });
+        
+        startObserving();
+    }
+});
+
+console.log("%c > PRIME VOICE READER v3.2 (DIAGNOSTIC MODE) < ", "background: #000; color: #0f0; font-size: 20px; border: 1px solid #0f0; padding: 10px;");
 
 // Rozszerzona lista selektorów
 const SUBTITLE_SELECTORS = [
