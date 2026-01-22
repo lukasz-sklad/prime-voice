@@ -28,17 +28,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Logika w tle
         createOffscreen()
             .then(() => {
+                // Czekamy dłużej, aż potężna biblioteka JS (44MB) się załaduje
                 setTimeout(() => {
                     chrome.runtime.sendMessage({
                         type: 'init_piper',
                         voiceId: request.voiceId
                     });
-                }, 500);
+                }, 3000);
             })
-            .catch((err) => {
-                console.error("Failed to create offscreen:", err);
-                chrome.runtime.sendMessage({ type: 'piper_error', error: err.message });
-            });
             
         return false; // Nie czekamy asynchronicznie na sendResponse
     }
