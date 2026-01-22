@@ -32,7 +32,12 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["libs/mqtt.min.js"],
+      "resources": [
+        "libs/mqtt.min.js",
+        "libs/piper_phonemize.js",
+        "libs/piper_phonemize.wasm",
+        "libs/ort.min.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
