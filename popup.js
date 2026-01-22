@@ -1,62 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Elementy UI
+    // UI Elements
     const toggleBtn = document.getElementById('toggleBtn');
     const statusLog = document.getElementById('statusLog');
     const voiceSelect = document.getElementById('voiceSelect');
-    const tabs = document.querySelectorAll('.tab');
-    const panels = {
-        localPanel: document.getElementById('localPanel'),
-        remotePanel: document.getElementById('remotePanel'),
-        piperPanel: document.getElementById('piperPanel')
-    };
     
-    // Elementy Remote
-    const connectRemoteBtn = document.getElementById('connectRemoteBtn');
-    const remoteSection = document.getElementById('remoteSection');
-    const qrContainer = document.getElementById('qrCode');
-    const directLink = document.getElementById('directLink');
-
-    // Elementy Piper
-    const downloadPiperBtn = document.getElementById('downloadPiperBtn');
-    const activatePiperBtn = document.getElementById('activatePiperBtn');
-    const piperStatus = document.getElementById('piperStatus');
-    const piperControls = document.getElementById('piperControls');
-
-    let isRunning = false;
-    let currentMode = 'local'; // 'local' | 'remote' | 'piper'
-    let sessionId = null;
-
-    // --- OBSŁUGA ZAKŁADEK ---
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // UI Update
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            
-            Object.values(panels).forEach(p => {
-                if(p) p.classList.add('hidden');
-            });
-            
-            const targetId = tab.getAttribute('data-target');
-            if (panels[targetId]) {
-                panels[targetId].classList.remove('hidden');
-                
-                // Logic Update
-                if (targetId === 'localPanel') currentMode = 'local';
-                else if (targetId === 'remotePanel') currentMode = 'remote';
-                else if (targetId === 'piperPanel') currentMode = 'piper';
-                
-                console.log("Mode switched to:", currentMode);
-            }
-        });
-    });
-
+    // Tabs
+    const tabs = document.querySelectorAll('.tab');
     const panels = {
         localPanel: document.getElementById('localPanel'),
         remotePanel: document.getElementById('remotePanel')
     };
-    
-    // Elementy Remote
+
+    // Remote UI
     const connectRemoteBtn = document.getElementById('connectRemoteBtn');
     const remoteSection = document.getElementById('remoteSection');
     const qrContainer = document.getElementById('qrCode');
@@ -66,162 +21,170 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMode = 'local'; // 'local' | 'remote'
     let sessionId = null;
 
-    // --- OBSŁUGA ZAKŁADEK ---
+    // --- TAB SWITCHING ---
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // UI Update
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             
-            Object.values(panels).forEach(p => {
-                if(p) p.classList.add('hidden');
-            });
+            Object.values(panels).forEach(p => p && p.classList.add('hidden'));
             
             const targetId = tab.getAttribute('data-target');
-            if (panels[targetId]) {
-                panels[targetId].classList.remove('hidden');
-                
-                // Logic Update
-                if (targetId === 'localPanel') currentMode = 'local';
-                else if (targetId === 'remotePanel') currentMode = 'remote';
-                
-                console.log("Mode switched to:", currentMode);
+            const targetPanel = panels[targetId];
+            if (targetPanel) {
+                targetPanel.classList.remove('hidden');
+                currentMode = targetId === 'localPanel' ? 'local' : 'remote';
             }
         });
     });
 
-    // --- ŁADOWANIE GŁOSÓW (CHROME TTS) ---
+    // --- VOICE LOADING (HYBRID: TTS + SYNTHESIS) ---
     function loadVoices() {
-        chrome.tts.getVoices((voices) => {
-            voiceSelect.innerHTML = '';
+        // Zbieramy unikalne głosy z obu źródeł
+        const allVoices = new Map();
 
-            if (voices.length === 0) {
-                const option = document.createElement('option');
-                option.text = "⚠️ Brak głosów TTS";
-                voiceSelect.appendChild(option);
-                return;
+        // 1. Chrome TTS (Dodatki)
+        chrome.tts.getVoices((ttsVoices) => {
+            if (ttsVoices) {
+                ttsVoices.forEach(v => {
+                    allVoices.set(v.voiceName, { 
+                        name: v.voiceName, 
+                        lang: v.lang || '?', 
+                        source: 'Ext' 
+                    });
+                });
             }
 
-            // Sortowanie: Najpierw PL, potem reszta. Promuj Piper/Google.
-            voices.sort((a, b) => {
-                const langA = (a.lang || '').toLowerCase();
-                const langB = (b.lang || '').toLowerCase();
-                const nameA = a.voiceName || '';
-                const nameB = b.voiceName || '';
-                
-                const isPlA = langA.includes('pl');
-                const isPlB = langB.includes('pl');
-
-                if (isPlA && !isPlB) return -1;
-                if (!isPlA && isPlB) return 1;
-                
-                const isPremiumA = nameA.includes('Piper') || nameA.includes('Google');
-                const isPremiumB = nameB.includes('Piper') || nameB.includes('Google');
-                
-                if (isPremiumA && !isPremiumB) return -1;
-                if (!isPremiumA && isPremiumB) return 1;
-
-                return nameA.localeCompare(nameB);
-            });
-
-            voices.forEach((voice) => {
-                const option = document.createElement('option');
-                option.value = voice.voiceName; 
-                
-                let label = voice.voiceName;
-                if (voice.extensionId) label += ' (Ext)'; // Oznacz głosy z dodatków
-                
-                option.textContent = label;
-                
-                // Auto-select PL
-                if ((voice.lang || '').includes('pl') && !voiceSelect.value) {
-                    option.selected = true;
+            // 2. SpeechSynthesis (Systemowe)
+            const synthVoices = speechSynthesis.getVoices();
+            synthVoices.forEach(v => {
+                // Jeśli głos o tej nazwie już jest (np. z extension), to go nie nadpisujmy, 
+                // chyba że chcemy dać priorytet. Zostawmy Ext jako ważniejszy.
+                if (!allVoices.has(v.name)) {
+                    allVoices.set(v.name, { 
+                        name: v.name, 
+                        lang: v.lang, 
+                        source: 'Sys' 
+                    });
                 }
-                voiceSelect.appendChild(option);
             });
+
+            renderVoiceList(Array.from(allVoices.values()));
         });
     }
 
-    // Nie ma zdarzenia onvoiceschanged dla chrome.tts, ładujemy raz
-    loadVoices();
+    function renderVoiceList(voices) {
+        voiceSelect.innerHTML = '';
+        
+        if (voices.length === 0) {
+            const opt = document.createElement('option');
+            opt.text = "Brak głosów (zainstaluj Piper!)";
+            voiceSelect.appendChild(opt);
+            return;
+        }
 
-    // --- LOGIKA START/STOP ---
+        // Sortowanie
+        voices.sort((a, b) => {
+            const langA = (a.lang || '').toLowerCase();
+            const langB = (b.lang || '').toLowerCase();
+            // Najpierw PL
+            const isPlA = langA.includes('pl');
+            const isPlB = langB.includes('pl');
+            
+            if (isPlA && !isPlB) return -1;
+            if (!isPlA && isPlB) return 1;
+            
+            // Potem Piper
+            const isPiperA = a.name.toLowerCase().includes('piper');
+            const isPiperB = b.name.toLowerCase().includes('piper');
+            if (isPiperA && !isPiperB) return -1;
+            if (!isPiperA && isPiperB) return 1;
+            
+            return a.name.localeCompare(b.name);
+        });
+
+        voices.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            opt.text = `${v.name} (${v.source})`;
+            
+            // Auto-select
+            if (!voiceSelect.value) opt.selected = true;
+            
+            voiceSelect.appendChild(opt);
+        });
+    }
+
+    // Init Voices
+    loadVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    // Extra check po chwili
+    setTimeout(loadVoices, 500);
+
+    // --- START / STOP ---
     toggleBtn.addEventListener('click', () => {
         isRunning = !isRunning;
-        updateUIState(isRunning);
         
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if (tabs.length === 0) return;
-            
-            if (isRunning) {
-                // Tryb Zdalny czy Lokalny?
-                if (currentMode === 'remote') {
-                     // Inicjalizacja Remote już poszła przy generowaniu kodu
-                     // Ale wysyłamy start, żeby content script wiedział
-                     chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "init_remote",
-                        sessionId: sessionId
-                    });
-                } else {
-                    // Tryb Lokalny - wysyłamy nazwę głosu
-                    const selectedVoiceName = voiceSelect.value;
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "start",
-                        voiceName: selectedVoiceName
-                    });
-                }
-            } else {
-                chrome.tabs.sendMessage(tabs[0].id, {action: "stop"});
-            }
-        });
-    });
-
-    function updateUIState(running) {
-        if (running) {
-            toggleBtn.textContent = "ZATRZYMAJ LEKTORA";
+        if (isRunning) {
+            toggleBtn.textContent = "ZATRZYMAJ";
             toggleBtn.classList.add('running');
-            statusLog.innerHTML = "Lektor AKTYWNY<br>Szukam napisów...";
+            statusLog.innerHTML = "AKTYWNY (" + currentMode.toUpperCase() + ")";
             statusLog.classList.add('active');
         } else {
             toggleBtn.textContent = "URUCHOM LEKTORA";
             toggleBtn.classList.remove('running');
-            statusLog.innerHTML = "System gotowy";
+            statusLog.innerHTML = "Gotowy";
             statusLog.classList.remove('active');
         }
-    }
 
-    // --- LOGIKA REMOTE (ZDALNA) ---
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            if (!tabs[0]) return;
+            
+            if (isRunning) {
+                if (currentMode === 'remote') {
+                    // Jeśli sessionId puste, wygeneruj
+                    if (!sessionId) {
+                        connectRemoteBtn.click(); // Symulacja kliknięcia żeby wygenerować ID
+                    }
+                    // Wyślij start z małym opóźnieniem żeby ID zdążyło się ustawić
+                    setTimeout(() => {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            action: "init_remote",
+                            sessionId: sessionId
+                        });
+                    }, 100);
+                } else {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "start",
+                        voiceName: voiceSelect.value
+                    });
+                }
+            } else {
+                chrome.tabs.sendMessage(tabs[0].id, { action: "stop" });
+            }
+        });
+    });
+
+    // --- REMOTE QR ---
     connectRemoteBtn.addEventListener('click', () => {
-        // 1. Generuj ID sesji
-        sessionId = Math.random().toString(36).substring(2, 10);
+        sessionId = Math.random().toString(36).substring(2, 8);
+        const url = `https://lukasz-sklad.github.io/prime-voice/mobile.html?session=${sessionId}`;
         
-        // 2. URL aplikacji klienckiej
-        const clientUrl = `https://lukasz-sklad.github.io/prime-voice/mobile.html?session=${sessionId}`;
-        
-        // 3. Pokaż sekcję
         remoteSection.classList.remove('hidden');
         qrContainer.innerHTML = '';
         
-        // 4. Generuj QR
-        new QRCode(qrContainer, {
-            text: clientUrl,
-            width: 128,
-            height: 128
-        });
+        // Sprawdź czy QRCode library jest załadowana
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(qrContainer, { text: url, width: 128, height: 128 });
+        } else {
+            qrContainer.textContent = "Błąd: Biblioteka QR niezaładowana.";
+        }
         
-        directLink.innerHTML = `<a href="${clientUrl}" target="_blank">Link testowy (kliknij)</a>`;
+        directLink.innerHTML = `<a href="${url}" target="_blank">Link: ${sessionId}</a>`;
         
-        // 5. Powiadom content script o trybie remote (aby zaczął nadawać)
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            if (tabs.length === 0) return;
-            
-            // Informujemy content script, że ma się połączyć z MQTT
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: "init_remote",
-                sessionId: sessionId
-            });
-        });
-        
-        connectRemoteBtn.textContent = `Sesja: ${sessionId} (Odśwież aby zmienić)`;
+        // Powiadom background o nowej sesji
+        chrome.runtime.sendMessage({ action: "init_remote", sessionId: sessionId });
     });
 });
