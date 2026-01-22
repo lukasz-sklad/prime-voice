@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prime Voice Receiver</title>
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        h1 { color: #0f0; margin-bottom: 10px; }
+        .status { color: #8b949e; margin-bottom: 20px; font-size: 14px; }
+        button {
+            background-color: #238636;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        select {
+            padding: 10px;
+            background: #161b22;
+            color: white;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            width: 80%;
+            margin-bottom: 10px;
+        }
+        .log {
+            font-family: monospace;
+            font-size: 10px;
+            color: #555;
+            max-height: 100px;
+            overflow-y: auto;
+            width: 90%;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prime Voice Mobile</h1>
+    <div class="status" id="status">Oczekiwanie na aktywację...</div>
+    
+    <select id="voiceSelect">
+        <option>Ładowanie głosów...</option>
+    </select>
+
+    <button id="startBtn">AKTYWUJ GŁOS</button>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const logEl = document.getElementById('log');
+        const voiceSelect = document.getElementById('voiceSelect');
+        
+        let client = null;
+        let selectedVoice = null;
+        let synth = window.speechSynthesis;
+
+        function log(msg) {
+            logEl.innerText = `> ${msg}\n` + logEl.innerText;
+        }
+
+        // 1. Ładowanie głosów
+        function loadVoices() {
+            let voices = synth.getVoices();
+            voiceSelect.innerHTML = '';
+            
+            voices.sort((a,b) => {
+                const langA = a.lang.toLowerCase();
+                const langB = b.lang.toLowerCase();
+                if (langA.includes('pl') && !langB.includes('pl')) return -1;
+                if (!langA.includes('pl') && langB.includes('pl')) return 1;
+                return 0;
+            });
+
+            voices.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.name;
+                opt.text = `${v.name} (${v.lang})`;
+                if (v.lang.includes('pl') && !selectedVoice) {
+                    opt.selected = true;
+                }
+                voiceSelect.appendChild(opt);
+            });
+        }
+        
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+
+        // 2. Parsowanie SessionID
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+
+        if (!sessionId) {
+            statusEl.innerText = "Błąd: Brak Session ID w URL";
+            startBtn.style.display = 'none';
+        }
+
+        startBtn.addEventListener('click', () => {
+            // Wymuszenie odblokowania AudioContext
+            const u = new SpeechSynthesisUtterance("Połączono");
+            synth.speak(u);
+            
+            startBtn.style.display = 'none';
+            connectMQTT();
+        });
+
+        function connectMQTT() {
+            statusEl.innerText = "Łączenie z MQTT...";
+            
+            const clientId = 'prime_mobile_' + Math.random().toString(16).substr(2, 8);
+            const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+
+            client = mqtt.connect(BROKER_URL, {
+                clientId: clientId,
+                clean: true,
+                keepalive: 60
+            });
+
+            client.on('connect', () => {
+                statusEl.innerText = "POŁĄCZONO! Czekam na napisy...";
+                statusEl.style.color = "#0f0";
+                log(`Connected to ${BROKER_URL}`);
+                
+                const topic = `primevoice/${sessionId}`;
+                client.subscribe(topic, (err) => {
+                    if (!err) {
+                        log(`Subscribed to: ${topic}`);
+                    }
+                });
+            });
+
+            client.on('message', (topic, message) => {
+                try {
+                    const data = JSON.parse(message.toString());
+                    
+                    if (data.type === 'speak') {
+                        log(`Mówię: ${data.text}`);
+                        speak(data.text);
+                    }
+                } catch (e) {
+                    log("Error parsing msg");
+                }
+            });
+            
+            client.on('error', (err) => {
+                statusEl.innerText = "Błąd MQTT";
+                statusEl.style.color = "red";
+                log(err);
+            });
+        }
+
+        function speak(text) {
+            synth.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            
+            const voiceName = voiceSelect.value;
+            const voices = synth.getVoices();
+            const v = voices.find(vo => vo.name === voiceName);
+            if (v) u.voice = v;
+            
+            u.rate = 1.2;
+            synth.speak(u);
+        }
+
+    </script>
+</body>
+</html>
