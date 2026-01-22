@@ -13,7 +13,10 @@ console.log("%c > PRIME VOICE HACK v2.0 (REMOTE READY) INJECTED < ", "background
 
 const SUBTITLE_SELECTORS = [
     '.atvwebplayersdk-captions-text',
-    'div[data-testid="caption-text-container"]'
+    'div[data-testid="caption-text-container"]',
+    'span[class*="caption"]',
+    '.dm-captions-text',
+    '[class*="atvwebplayersdk-captions"]'
 ];
 
 const FORBIDDEN_WORDS = [
@@ -140,6 +143,9 @@ function handleMutations() {
 function checkForSubtitles() {
     let bestCandidate = "";
     let maxLength = 0;
+    
+    // Debug
+    const debugMode = true; 
 
     for (const selector of SUBTITLE_SELECTORS) {
         const elements = document.querySelectorAll(selector);
@@ -154,12 +160,19 @@ function checkForSubtitles() {
             if (rect.width < 5 || rect.height < 5) return;
             
             const text = el.innerText;
+            if (!text || text.trim().length === 0) return;
+
+            if (debugMode && Math.random() > 0.95) { 
+                console.log(`[DEBUG SCAN] Found in '${selector}': "${text.substring(0, 30)}..."`);
+            }
             
             if (isSafeToRead(text)) {
                 if (text.length > maxLength) {
                     maxLength = text.length;
                     bestCandidate = text;
                 }
+            } else {
+                 if (debugMode && Math.random() > 0.98) console.log(`[DEBUG REJECTED] "${text.substring(0, 30)}..."`);
             }
         });
     }
