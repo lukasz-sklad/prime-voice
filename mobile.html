@@ -142,14 +142,16 @@
             });
 
             client.on('connect', () => {
-                statusEl.innerText = "POŁĄCZONO! Czekam na napisy...";
+                statusEl.innerText = `POŁĄCZONO! (ID: ${sessionId})`;
                 statusEl.style.color = "#0f0";
                 log(`Connected to ${BROKER_URL}`);
                 
-                const topic = `primevoice/${sessionId}`;
-                client.subscribe(topic, (err) => {
+                // Subskrybuj wszystko dla diagnostyki
+                const wildcardTopic = `primevoice/+`;
+                
+                client.subscribe(wildcardTopic, (err) => {
                     if (!err) {
-                        log(`Subscribed to: ${topic}`);
+                        log(`Subscribed to: ${wildcardTopic}`);
                     }
                 });
             });
@@ -157,13 +159,20 @@
             client.on('message', (topic, message) => {
                 try {
                     const data = JSON.parse(message.toString());
+                    const msgSessionId = topic.split('/')[1];
                     
-                    if (data.type === 'speak') {
-                        log(`Mówię: ${data.text}`);
-                        speak(data.text);
+                    if (msgSessionId === sessionId) {
+                        // To nasza sesja -> MÓW
+                        if (data.type === 'speak') {
+                            log(`[MÓWIĘ]: ${data.text}`);
+                            speak(data.text);
+                        }
+                    } else {
+                        // Inna sesja -> LOGUJ (diagnostyka)
+                        log(`[INNA SESJA ${msgSessionId}]: ${data.text.substring(0, 15)}...`);
                     }
                 } catch (e) {
-                    log("Error parsing msg");
+                    log("Error parsing msg: " + e.message);
                 }
             });
             
