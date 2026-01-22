@@ -1,3 +1,5 @@
+chrome.runtime.sendMessage({ type: 'offscreen_alive' });
+
 import { 
     PiperWebEngine, 
     PhonemizeWebRuntime, 

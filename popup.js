@@ -55,7 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Nasłuchiwanie statusu z Offscreen/Background
     chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.type === 'piper_status') {
+        if (msg.type === 'offscreen_alive') {
+            piperStatus.textContent = "Status: Silnik Offscreen żyje!";
+            piperStatus.style.color = "cyan";
+        } else if (msg.type === 'piper_status') {
             piperStatus.textContent = "Status: " + msg.text;
         } else if (msg.type === 'piper_ready') {
             piperStatus.textContent = "Status: Gotowy (Model załadowany)";
