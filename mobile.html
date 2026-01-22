@@ -183,8 +183,12 @@
             const v = voices.find(vo => vo.name === voiceName);
             if (v) u.voice = v;
             
-            u.rate = 1.2;
+            u.rate = 1.0; // Bezpieczniejsza prędkość na start
+            
+            u.onerror = (e) => log("Błąd TTS: " + e.error);
+            
             synth.speak(u);
+            log("Mówię: " + text.substring(0, 20) + "...");
         }
 
     </script>

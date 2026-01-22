@@ -168,11 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function handleContentResponse(response) {
         if (chrome.runtime.lastError) {
-            console.error("Communication error:", chrome.runtime.lastError.message);
-            statusLog.innerHTML = "⚠️ BŁĄD POŁĄCZENIA<br>Odśwież stronę z filmem (F5)!";
-            statusLog.style.color = "red";
-            toggleBtn.textContent = "BŁĄD - ODŚWIEŻ F5";
-            toggleBtn.style.backgroundColor = "#555";
+            console.warn("Popup-Content warning:", chrome.runtime.lastError.message);
+            // Nie blokujemy UI, bo system działa (background odbiera sygnały).
+            // Ewentualnie można dodać małą ikonkę warningu, ale nie czerwony alert.
         }
     }
 
