@@ -9,7 +9,7 @@
     "tts"
   ],
   "host_permissions": [
-    "*://broker.hivemq.com/*",
+    "*://test.mosquitto.org/*",
     "*://*.primevideo.com/*"
   ],
   "background": {
