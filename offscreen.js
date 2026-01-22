@@ -49,6 +49,31 @@ function playAudio(pcmData, sampleRate) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'init_piper') {
+        (async () => {
+            try {
+                console.log("[Piper] Init requested for:", msg.voiceId);
+                chrome.runtime.sendMessage({ type: 'piper_status', text: "Ładowanie bibliotek WASM..." });
+                
+                const eng = await getEngine();
+                
+                chrome.runtime.sendMessage({ type: 'piper_status', text: "Pobieranie modelu (to może potrwać)..." });
+                
+                // Rozgrzewka + Pobieranie
+                // Biblioteka automatycznie cache'uje model w Cache API
+                await eng.generate("Okej.", msg.voiceId);
+                
+                chrome.runtime.sendMessage({ type: 'piper_ready' });
+                console.log("[Piper] Inicjalizacja zakończona sukcesem!");
+                
+            } catch (e) {
+                console.error("[Piper Init Error]", e);
+                chrome.runtime.sendMessage({ type: 'piper_error', error: e.message || "Błąd inicjalizacji" });
+            }
+        })();
+        return true;
+    }
+
     if (msg.type === 'speak_piper') {
         const text = msg.text;
         const voiceId = msg.voiceId || 'pl_PL-gosia-medium';

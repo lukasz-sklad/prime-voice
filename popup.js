@@ -51,35 +51,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- OBSŁUGA PIPERA (UI MOCKUP) ---
+    // --- OBSŁUGA PIPERA ---
+    
+    // Nasłuchiwanie statusu z Offscreen/Background
+    chrome.runtime.onMessage.addListener((msg) => {
+        if (msg.type === 'piper_status') {
+            piperStatus.textContent = "Status: " + msg.text;
+        } else if (msg.type === 'piper_ready') {
+            piperStatus.textContent = "Status: Gotowy (Model załadowany)";
+            piperStatus.style.color = "#0f0";
+            
+            piperControls.classList.remove('hidden');
+            downloadPiperBtn.textContent = "Model gotowy";
+            downloadPiperBtn.style.backgroundColor = "#238636";
+            downloadPiperBtn.disabled = true;
+        } else if (msg.type === 'piper_error') {
+            piperStatus.textContent = "Błąd: " + msg.error;
+            piperStatus.style.color = "red";
+            downloadPiperBtn.textContent = "Spróbuj ponownie";
+            downloadPiperBtn.disabled = false;
+        }
+    });
+
     if (downloadPiperBtn) {
         downloadPiperBtn.addEventListener('click', () => {
-            downloadPiperBtn.textContent = "Pobieranie... (Symulacja)";
-            piperStatus.textContent = "Status: Pobieranie modelu (0%)...";
+            const voiceId = document.getElementById('piperVoiceSelect').value;
             
-            setTimeout(() => {
-                piperStatus.textContent = "Status: Gotowe (Offline)";
-                piperControls.classList.remove('hidden');
-                downloadPiperBtn.textContent = "Pobierz ponownie";
-                downloadPiperBtn.style.backgroundColor = "#238636";
-            }, 1500);
+            downloadPiperBtn.textContent = "Inicjalizacja...";
+            downloadPiperBtn.disabled = true;
+            piperStatus.textContent = "Status: Uruchamianie silnika...";
+            piperStatus.style.color = "#8b949e";
+            
+            // Wysyłamy żądanie inicjalizacji
+            chrome.runtime.sendMessage({ 
+                action: "init_piper", // Poprawiona nazwa akcji dla background.js
+                voiceId: voiceId 
+            });
         });
     }
 
     if (activatePiperBtn) {
         activatePiperBtn.addEventListener('click', () => {
-            // Tutaj wyślemy sygnał do content.js -> background.js -> offscreen
             isRunning = !isRunning;
             activatePiperBtn.textContent = isRunning ? "Zatrzymaj Pipera" : "Uruchom Pipera";
             activatePiperBtn.classList.toggle('running', isRunning);
             
-            // Informujemy content script
+            // Informujemy content script, żeby zaczął wysyłać tekst do Pipera
              chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 if (tabs.length === 0) return;
                 
-                // Logika startu dla Pipera (jeszcze niezaimplementowana w content.js w pełni)
-                // Użyjemy flagi init_piper w przyszłości
-                console.log("Piper activation toggled");
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: isRunning ? "start_piper" : "stop"
+                });
             });
         });
     }

@@ -38,9 +38,14 @@
         "libs/piper_phonemize.wasm",
         "libs/piper_phonemize.data",
         "libs/worker/*",
-        "libs/ort.min.js"
+        "libs/ort.min.js",
+        "libs/ort-wasm.wasm",
+        "libs/ort-wasm-simd.wasm"
       ],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }
