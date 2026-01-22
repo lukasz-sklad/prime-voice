@@ -162,15 +162,10 @@
                     const data = JSON.parse(message.toString());
                     const msgSessionId = topic.split('/')[1];
                     
-                    if (msgSessionId === sessionId) {
-                        // To nasza sesja -> MÓW
-                        if (data.type === 'speak') {
-                            log(`[MÓWIĘ]: ${data.text}`);
-                            speak(data.text);
-                        }
-                    } else {
-                        // Inna sesja -> LOGUJ (diagnostyka)
-                        log(`[INNA SESJA ${msgSessionId}]: ${data.text.substring(0, 15)}...`);
+                    // Czytaj wszystko co przyjdzie
+                    if (data.type === 'speak') {
+                        log(`[${msgSessionId}]: ${data.text}`);
+                        speak(data.text);
                     }
                 } catch (e) {
                     log("Error parsing msg: " + e.message);
