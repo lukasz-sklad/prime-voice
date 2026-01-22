@@ -4,7 +4,7 @@ let mqttClient = null;
 let currentVoiceName = null;
 
 // Broker publiczny
-const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     

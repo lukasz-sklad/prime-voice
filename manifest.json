@@ -9,7 +9,7 @@
     "tts"
   ],
   "host_permissions": [
-    "*://broker.emqx.io/*",
+    "*://broker.hivemq.com/*",
     "*://*.primevideo.com/*"
   ],
   "background": {
