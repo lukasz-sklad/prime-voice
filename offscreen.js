@@ -5,6 +5,17 @@ import {
     FetchProvider 
 } from './libs/piper-tts-web.js';
 
+// Global error handlers
+window.onerror = function(msg, source, lineno, colno, error) {
+    console.error("[Offscreen Global Error]", msg, error);
+    chrome.runtime.sendMessage({ type: 'piper_error', error: "Critical: " + msg });
+};
+
+window.onunhandledrejection = function(event) {
+    console.error("[Offscreen Unhandled Rejection]", event.reason);
+    chrome.runtime.sendMessage({ type: 'piper_error', error: "Unhandled: " + event.reason });
+};
+
 let engine = null;
 let activeSession = null;
 

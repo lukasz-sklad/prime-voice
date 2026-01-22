@@ -21,23 +21,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // --- PIPER LOCAL (WASM) ---
     if (request.action === "init_piper") {
         console.log("Background: Init Piper requested");
+        
+        // Odpowiadamy natychmiast, żeby nie blokować popupu
+        sendResponse({status: "initializing_started"});
+        
+        // Logika w tle
         createOffscreen()
             .then(() => {
-                // Czekamy chwilę, aż offscreen wstanie
                 setTimeout(() => {
                     chrome.runtime.sendMessage({
                         type: 'init_piper',
                         voiceId: request.voiceId
                     });
                 }, 500);
-                sendResponse({status: "initializing"});
             })
             .catch((err) => {
                 console.error("Failed to create offscreen:", err);
-                sendResponse({status: "error", error: err.message});
+                chrome.runtime.sendMessage({ type: 'piper_error', error: err.message });
             });
             
-        return true; // Asynchroniczna odpowiedź
+        return false; // Nie czekamy asynchronicznie na sendResponse
     }
 
     if (request.action === "speak_piper") {
